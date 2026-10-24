@@ -107,13 +107,20 @@ def run_maven_tests(java_code: str, test_code: str) -> tuple[bool, str]:
         os.makedirs(main_dir, exist_ok=True)
         os.makedirs(test_dir, exist_ok=True)
 
-        # 2. Write source and test files
-        with open(os.path.join(main_dir, "SubscriptionService.java"), "w", encoding="utf-8") as f:
+        # 2. Dynamically extract public class names to satisfy Java's strict filename rules
+        service_class_match = re.search(r'public\s+(?:class|interface|enum)\s+(\w+)', java_code)
+        service_class_name = service_class_match.group(1) if service_class_match else "SubscriptionService"
+
+        test_class_match = re.search(r'public\s+(?:class|interface|enum)\s+(\w+)', test_code)
+        test_class_name = test_class_match.group(1) if test_class_match else "SubscriptionServiceTest"
+
+        # 3. Write source and test files using their exact detected class names
+        with open(os.path.join(main_dir, f"{service_class_name}.java"), "w", encoding="utf-8") as f:
             f.write(java_code)
-        with open(os.path.join(test_dir, "SubscriptionServiceTest.java"), "w", encoding="utf-8") as f:
+        with open(os.path.join(test_dir, f"{test_class_name}.java"), "w", encoding="utf-8") as f:
             f.write(test_code)
 
-        # 3. Write minimal pom.xml configured for Spring Boot, JUnit 5, and Mockito
+        # 4. Write minimal pom.xml configured for Spring Boot, JUnit 5, and Mockito
         pom_content = """<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -150,24 +157,18 @@ def run_maven_tests(java_code: str, test_code: str) -> tuple[bool, str]:
         with open(os.path.join(temp_dir, "pom.xml"), "w", encoding="utf-8") as f:
             f.write(pom_content)
 
-        # 4. Check if maven is available before running
+        # 5. Check if maven is available before running
         try:
             check_mvn = subprocess.run(["mvn", "-version"], capture_output=True, text=True)
             if check_mvn.returncode != 0:
                 return False, "Maven is installed but returned an error during version check."
         except FileNotFoundError:
-            return False, (
-                "Maven Execution Error: 'mvn' command not found.\n\n"
-                "Troubleshooting Steps:\n"
-                "1. Ensure 'packages.txt' in your GitHub repo contains 'default-jdk' and 'maven'.\n"
-                "2. Go to your Streamlit Cloud Dashboard, click the three dots (...) next to your app, "
-                "and select 'Clear cache and redeploy' to force a fresh system build."
-            )
+            return False, "Maven Execution Error: 'mvn' command not found. Ensure maven is in packages.txt."
 
-        # 5. Run Maven test suite execution
+        # 6. Run Maven test suite execution using the dynamically found test class
         try:
             res = subprocess.run(
-                ["mvn", "test", "-Dtest=SubscriptionServiceTest"],
+                ["mvn", "test", f"-Dtest={test_class_name}"],
                 cwd=temp_dir,
                 capture_output=True,
                 text=True,
