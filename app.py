@@ -115,9 +115,9 @@ def run_maven_tests(java_code: str, test_code: str) -> tuple[bool, str]:
 
         # 3. Write minimal pom.xml configured for Spring Boot, JUnit 5, and Mockito
         pom_content = """<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="[http://maven.apache.org/POM/4.0.0](http://maven.apache.org/POM/4.0.0)"
-         xmlns:xsi="[http://www.w3.org/2001/XMLSchema-instance](http://www.w3.org/2001/XMLSchema-instance)"
-         xsi:schemaLocation="[http://maven.apache.org/POM/4.0.0](http://maven.apache.org/POM/4.0.0) [http://maven.apache.org/xsd/maven-4.0.0.xsd](http://maven.apache.org/xsd/maven-4.0.0.xsd)">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.enterprise</groupId>
     <artifactId>jira-ai-service</artifactId>
@@ -150,7 +150,21 @@ def run_maven_tests(java_code: str, test_code: str) -> tuple[bool, str]:
         with open(os.path.join(temp_dir, "pom.xml"), "w", encoding="utf-8") as f:
             f.write(pom_content)
 
-        # 4. Run Maven test suite execution (works seamlessly on Streamlit Cloud via packages.txt)
+        # 4. Check if maven is available before running
+        try:
+            check_mvn = subprocess.run(["mvn", "-version"], capture_output=True, text=True)
+            if check_mvn.returncode != 0:
+                return False, "Maven is installed but returned an error during version check."
+        except FileNotFoundError:
+            return False, (
+                "Maven Execution Error: 'mvn' command not found.\n\n"
+                "Troubleshooting Steps:\n"
+                "1. Ensure 'packages.txt' in your GitHub repo contains 'default-jdk' and 'maven'.\n"
+                "2. Go to your Streamlit Cloud Dashboard, click the three dots (...) next to your app, "
+                "and select 'Clear cache and redeploy' to force a fresh system build."
+            )
+
+        # 5. Run Maven test suite execution
         try:
             res = subprocess.run(
                 ["mvn", "test", "-Dtest=SubscriptionServiceTest"],
@@ -163,8 +177,6 @@ def run_maven_tests(java_code: str, test_code: str) -> tuple[bool, str]:
             passed = (res.returncode == 0)
             output = res.stdout if passed else res.stdout + "\n" + res.stderr
             return passed, output
-        except FileNotFoundError:
-            return False, "Maven Execution Error: 'mvn' command not found. Ensure maven is installed in packages.txt."
         except Exception as e:
             return False, f"Maven Execution Error: {str(e)}"
 
