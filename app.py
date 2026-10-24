@@ -107,20 +107,23 @@ def run_maven_tests(java_code: str, test_code: str) -> tuple[bool, str]:
         os.makedirs(main_dir, exist_ok=True)
         os.makedirs(test_dir, exist_ok=True)
 
-        # 2. Dynamically extract public class names to satisfy Java's strict filename rules
+        # 2. Auto-fix any javax.persistence imports to jakarta.persistence for Spring Boot 3 compatibility
+        java_code = java_code.replace("javax.persistence", "jakarta.persistence")
+
+        # 3. Dynamically extract public class name
         service_class_match = re.search(r'public\s+(?:class|interface|enum)\s+(\w+)', java_code)
         service_class_name = service_class_match.group(1) if service_class_match else "SubscriptionService"
 
         test_class_match = re.search(r'public\s+(?:class|interface|enum)\s+(\w+)', test_code)
         test_class_name = test_class_match.group(1) if test_class_match else "SubscriptionServiceTest"
 
-        # 3. Write source and test files using their exact detected class names
+        # 4. Write source and test files
         with open(os.path.join(main_dir, f"{service_class_name}.java"), "w", encoding="utf-8") as f:
             f.write(java_code)
         with open(os.path.join(test_dir, f"{test_class_name}.java"), "w", encoding="utf-8") as f:
             f.write(test_code)
 
-        # 4. Write minimal pom.xml configured for Spring Boot, JUnit 5, and Mockito
+        # 5. Write pom.xml including spring-boot-starter-data-jpa for Jakarta persistence support
         pom_content = """<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -142,6 +145,11 @@ def run_maven_tests(java_code: str, test_code: str) -> tuple[bool, str]:
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+            <version>3.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
             <version>3.2.0</version>
         </dependency>
@@ -157,15 +165,7 @@ def run_maven_tests(java_code: str, test_code: str) -> tuple[bool, str]:
         with open(os.path.join(temp_dir, "pom.xml"), "w", encoding="utf-8") as f:
             f.write(pom_content)
 
-        # 5. Check if maven is available before running
-        try:
-            check_mvn = subprocess.run(["mvn", "-version"], capture_output=True, text=True)
-            if check_mvn.returncode != 0:
-                return False, "Maven is installed but returned an error during version check."
-        except FileNotFoundError:
-            return False, "Maven Execution Error: 'mvn' command not found. Ensure maven is in packages.txt."
-
-        # 6. Run Maven test suite execution using the dynamically found test class
+        # 6. Run Maven test suite execution
         try:
             res = subprocess.run(
                 ["mvn", "test", f"-Dtest={test_class_name}"],
