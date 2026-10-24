@@ -2,9 +2,7 @@ import os
 import re
 import tempfile
 import subprocess
-import hashlib
 import streamlit as st
-import streamlit.components.v1 as components
 from openai import OpenAI
 
 # 1. Page Configuration
@@ -48,17 +46,25 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Retrieve API Key securely from Streamlit Secrets or Environment Variables
-api_key = st.secrets.get("NVIDIA_API_KEY") or os.getenv("NVIDIA_API_KEY")
+# 2. Safe API Key Retrieval (Handles Streamlit Cloud Secrets & Local Env Variables)
+api_key = None
+try:
+    if "NVIDIA_API_KEY" in st.secrets:
+        api_key = st.secrets["NVIDIA_API_KEY"]
+except Exception:
+    pass
 
 if not api_key:
-    st.error("Missing NVIDIA_API_KEY! Please configure it in .streamlit/secrets.toml or your environment variables.")
+    api_key = os.getenv("NVIDIA_API_KEY")
+
+if not api_key:
+    st.error("Missing NVIDIA_API_KEY! Please configure it in Streamlit Cloud Secrets or your environment variables.")
     st.stop()
 
-# Ensure raw key format (strip accidental 'Bearer ' prefix if passed via secrets)
 clean_api_key = api_key.replace("Bearer ", "").strip()
 
-MODEL_NAME = "moonshotai/kimi-k3"
+# Using stable Llama 3.3 70B model on NVIDIA NIM
+MODEL_NAME = "meta/llama-3.2-11b-vision-instruct"
 
 client = OpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
@@ -144,19 +150,21 @@ def run_maven_tests(java_code: str, test_code: str) -> tuple[bool, str]:
         with open(os.path.join(temp_dir, "pom.xml"), "w", encoding="utf-8") as f:
             f.write(pom_content)
 
-        # 4. Run Maven test suite execution
+        # 4. Run Maven test suite execution (works seamlessly on Streamlit Cloud via packages.txt)
         try:
             res = subprocess.run(
                 ["mvn", "test", "-Dtest=SubscriptionServiceTest"],
                 cwd=temp_dir,
                 capture_output=True,
                 text=True,
-                timeout=60,
+                timeout=90,
                 shell=False
             )
             passed = (res.returncode == 0)
             output = res.stdout if passed else res.stdout + "\n" + res.stderr
             return passed, output
+        except FileNotFoundError:
+            return False, "Maven Execution Error: 'mvn' command not found. Ensure maven is installed in packages.txt."
         except Exception as e:
             return False, f"Maven Execution Error: {str(e)}"
 
