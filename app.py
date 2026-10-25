@@ -28,7 +28,7 @@ if not api_key:
     st.stop()
 
 clean_api_key = api_key.replace("Bearer ", "").strip()
-MODEL_NAME = "meta/llama-3.3-70b-instruct"
+MODEL_NAME = "nvidia/nemotron-3.5-bolt-e4b"
 
 client = OpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
