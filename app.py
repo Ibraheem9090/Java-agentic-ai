@@ -117,8 +117,19 @@ def run_maven_tests(java_code: str, test_code: str) -> tuple[bool, str]:
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+        </plugins>
+    </build>
 </project>
 """
+       
+       
         with open(os.path.join(temp_dir, "pom.xml"), "w", encoding="utf-8") as f:
             f.write(pom_content)
 
