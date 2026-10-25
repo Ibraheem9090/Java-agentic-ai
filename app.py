@@ -156,7 +156,7 @@ def run_maven_tests(java_code: str, test_code: str) -> tuple[bool, str]:
             return False, f"Maven Execution Error: {str(e)}"
 
 # App Header
-st.title("🚀 AI-Driven Component & Test Generation Pipeline")
+st.title("🚀 AI-Driven Component & Test Generation Pipeline By Aafreen")
 st.markdown("Bridge Jira requirements directly to production-ready code and test suites in seconds.")
 
 # Sidebar Configuration
