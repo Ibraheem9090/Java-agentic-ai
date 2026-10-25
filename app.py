@@ -7,7 +7,7 @@ from openai import OpenAI
 
 # Page Configuration
 st.set_page_config(
-    page_title="AI Jira-to-Code Pipeline",
+    page_title="AI Jira-to-Code Pipeline By Aafreen",
     page_icon="🤖",
     layout="wide"
 )
